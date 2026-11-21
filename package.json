@@ -1,10 +1,16 @@
 {
   "name": "ryouken-baileys",
   "version": "1.0.0",
-  "description": "WhatsApp bot library based on Baileys supporting QR, pairing code, auto-reconnect, and full Baileys functions",
+  "description": "WhatsApp bot library based on Baileys supporting QR, pairing code, auto-reconnect, ESM & CommonJS",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.mjs"
+    }
+  },
   "files": [
     "dist"
   ],
