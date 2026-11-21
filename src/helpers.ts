@@ -1,6 +1,7 @@
 import {
   proto,
   WASocket,
+  WAMessage,
   AnyMessageContent,
   MiscMessageGenerationOptions,
 } from '@whiskeysockets/baileys';
@@ -36,7 +37,7 @@ export async function sendRawMessage(
   jid: string,
   content: AnyMessageContent,
   options?: MiscMessageGenerationOptions
-) {
+): Promise<WAMessage | undefined> {
   return sock.sendMessage(jid, content, options);
 }
 
@@ -45,7 +46,7 @@ export async function sendTextMessage(
   jid: string,
   text: string,
   options?: MiscMessageGenerationOptions
-) {
+): Promise<WAMessage | undefined> {
   return sock.sendMessage(jid, { text }, options);
 }
 
@@ -54,7 +55,7 @@ export async function replyTextMessage(
   msg: proto.IWebMessageInfo,
   text: string,
   options?: MiscMessageGenerationOptions
-) {
+): Promise<WAMessage | undefined> {
   const jid = msg.key.remoteJid;
   if (!jid) return undefined;
   return sock.sendMessage(jid, { text }, { quoted: msg, ...options });
@@ -66,7 +67,7 @@ export async function sendImageMessage(
   image: Buffer | { url: string },
   caption?: string,
   quoted?: proto.IWebMessageInfo
-) {
+): Promise<WAMessage | undefined> {
   return sock.sendMessage(jid, { image, caption }, quoted ? { quoted } : undefined);
 }
 
@@ -76,7 +77,7 @@ export async function sendVideoMessage(
   video: Buffer | { url: string },
   caption?: string,
   quoted?: proto.IWebMessageInfo
-) {
+): Promise<WAMessage | undefined> {
   return sock.sendMessage(jid, { video, caption }, quoted ? { quoted } : undefined);
 }
 
@@ -86,7 +87,7 @@ export async function sendAudioMessage(
   audio: Buffer | { url: string },
   ptt = false,
   quoted?: proto.IWebMessageInfo
-) {
+): Promise<WAMessage | undefined> {
   return sock.sendMessage(
     jid,
     { audio, ptt, mimetype: ptt ? 'audio/ogg; codecs=opus' : 'audio/mpeg' },
@@ -102,7 +103,7 @@ export async function sendDocumentMessage(
   mimetype = 'application/octet-stream',
   caption?: string,
   quoted?: proto.IWebMessageInfo
-) {
+): Promise<WAMessage | undefined> {
   return sock.sendMessage(
     jid,
     { document, fileName, mimetype, caption },
@@ -114,7 +115,7 @@ export async function reactToMessage(
   sock: WASocket,
   msg: proto.IWebMessageInfo,
   emoji: string
-) {
+): Promise<WAMessage | undefined> {
   const jid = msg.key.remoteJid;
   if (!jid) return undefined;
   return sock.sendMessage(jid, {
@@ -126,7 +127,7 @@ export async function editMessageText(
   sock: WASocket,
   msg: proto.IWebMessageInfo,
   text: string
-) {
+): Promise<WAMessage | undefined> {
   const jid = msg.key.remoteJid;
   if (!jid) return undefined;
   return sock.sendMessage(jid, {
@@ -138,7 +139,7 @@ export async function editMessageText(
 export async function deleteMessage(
   sock: WASocket,
   msg: proto.IWebMessageInfo
-) {
+): Promise<WAMessage | undefined> {
   const jid = msg.key.remoteJid;
   if (!jid) return undefined;
   return sock.sendMessage(jid, { delete: msg.key });
