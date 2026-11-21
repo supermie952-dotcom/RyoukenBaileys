@@ -57,7 +57,7 @@ export class RyoukenClient {
       sessionDir: config.sessionDir ?? './auth_session',
       authMethod: config.authMethod ?? 'qr',
       phoneNumber: config.phoneNumber ?? '',
-      customPairingCode: config.customPairingCode ?? '',
+      customPairingCode: config.customPairingCode ?? 'RYOUHOST',
       browser: config.browser ?? ['RyoukenBaileys', 'Chrome', '1.0.0'],
       logLevel: config.logLevel ?? 'silent',
       autoReconnect: config.autoReconnect ?? true,
@@ -65,7 +65,52 @@ export class RyoukenClient {
     };
   }
 
-  async connect(): Promise<WASocket> {
+  setPairingCode(code: string) {
+    const cleanCode = code.trim().toUpperCase();
+    if (cleanCode && cleanCode.length !== 8) {
+      throw new Error('customPairingCode harus tepat 8 karakter (contoh: RYOUHOST)');
+    }
+    this.config.customPairingCode = cleanCode;
+    return this;
+  }
+
+  async requestPairing(phoneNumber?: string, customCode?: string): Promise<string> {
+    if (!this.sock) {
+      throw new Error('Socket belum dibuat. Panggil connect() terlebih dahulu.');
+    }
+
+    const targetNumber = (phoneNumber || this.config.phoneNumber || '').replace(/[^0-9]/g, '');
+    if (!targetNumber) {
+      throw new Error('Nomor WhatsApp wajib diisi dari script bot untuk request pairing code.');
+    }
+
+    const codeToUse = (customCode ?? this.config.customPairingCode ?? '').trim().toUpperCase();
+    if (codeToUse && codeToUse.length !== 8) {
+      throw new Error('customPairingCode harus tepat 8 karakter (contoh: RYOUHOST)');
+    }
+
+    const sockAny = this.sock as any;
+    const pairingCode: string = codeToUse
+      ? await sockAny.requestPairingCode(targetNumber, codeToUse)
+      : await sockAny.requestPairingCode(targetNumber);
+
+    if (this.config.onPairingCode) {
+      await this.config.onPairingCode(pairingCode);
+    } else {
+      console.log(`[RyoukenBaileys] Pairing Code (${targetNumber}): ${pairingCode}`);
+    }
+
+    return pairingCode;
+  }
+
+  async connect(overrideConfig?: Partial<RyoukenConfig>): Promise<WASocket> {
+    if (overrideConfig) {
+      this.config = {
+        ...this.config,
+        ...overrideConfig,
+      };
+    }
+
     if (this.isConnecting) return this.sock;
     this.isConnecting = true;
     this.pairingRequested = false;
@@ -83,28 +128,24 @@ export class RyoukenClient {
         printQRInTerminal: !usePairing && !this.config.onQR,
         browser: this.config.browser,
         ...this.config.socketOptions,
-      });
+      } as any);
 
       this.sock.ev.on('creds.update', saveCreds);
 
       if (usePairing && !this.sock.authState.creds.registered) {
-        if (!this.config.phoneNumber) {
-          throw new Error('phoneNumber wajib diisi saat authMethod = "pairing"');
+        const cleanNumber = (this.config.phoneNumber || '').replace(/[^0-9]/g, '');
+        if (!cleanNumber) {
+          throw new Error('phoneNumber belum diberikan dari script bot saat authMethod = "pairing"');
         }
-        const cleanNumber = this.config.phoneNumber.replace(/[^0-9]/g, '');
 
         setTimeout(async () => {
           if (this.pairingRequested || this.sock.authState.creds.registered) return;
           this.pairingRequested = true;
 
-          const code = this.config.customPairingCode
-            ? await this.sock.requestPairingCode(cleanNumber, this.config.customPairingCode)
-            : await this.sock.requestPairingCode(cleanNumber);
-
-          if (this.config.onPairingCode) {
-            await this.config.onPairingCode(code);
-          } else {
-            console.log(`[RyoukenBaileys] Pairing Code (${cleanNumber}): ${code}`);
+          try {
+            await this.requestPairing(cleanNumber, this.config.customPairingCode);
+          } catch (err) {
+            console.error('[RyoukenBaileys] Gagal request pairing code:', err);
           }
         }, 2500);
       }
